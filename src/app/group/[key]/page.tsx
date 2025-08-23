@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MemberChips } from '@/components/MemberChips';
 import { ExpenseCard } from '@/components/ExpenseCard';
 import { CopyButton } from '@/components/CopyButton';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Plus, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { yen } from '@/lib/format';
@@ -57,6 +58,8 @@ export default function GroupPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [unit, setUnit] = useState<1 | 10 | 100 | 1000>(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   
   // Zustandストアから傾斜モードと調整値を取得
   const tiltMap = useExpenseTiltStore((s) => s.map);
@@ -172,6 +175,40 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
     setUnit(newUnit);
   };
 
+  const handleEdit = (expenseId: string) => {
+    router.push(`/group/${groupKey}/expense/${expenseId}/edit`);
+  };
+
+  const handleDelete = (expenseId: string) => {
+    setExpenseToDelete(expenseId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!expenseToDelete) return;
+
+    try {
+      const response = await fetch(`/api/groups/${groupKey}/expenses/${expenseToDelete}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // 立替リストから削除
+        setExpenses(prev => prev.filter(e => e.id !== expenseToDelete));
+        toast.success('立替を削除しました');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || '削除に失敗しました');
+      }
+    } catch (error) {
+      console.error('削除に失敗しました:', error);
+      toast.error('削除に失敗しました');
+    } finally {
+      setDeleteDialogOpen(false);
+      setExpenseToDelete(null);
+    }
+  };
+
   useEffect(() => {
     if (groupKey) {
       fetchData();
@@ -277,6 +314,8 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
                   expense={expense} 
                   members={members}
                   roundingUnit={unit}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
@@ -289,6 +328,18 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
           )}
         </div>
       </div>
+
+      {/* 削除確認ダイアログ */}
+      <DeleteConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setExpenseToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="立替を削除"
+        description="この立替を削除しますか？この操作は取り消せません。"
+      />
     </div>
   );
 }

@@ -26,6 +26,8 @@ interface ExpenseCardProps {
     age?: number | null;
   }>;
   roundingUnit: 1 | 10 | 100 | 1000;
+  onEdit?: (expenseId: string) => void;
+  onDelete?: (expenseId: string) => void;
 }
 
 // スライダー付き送金表示コンポーネント
@@ -224,11 +226,23 @@ function GroupTransfersWithSliders({
   );
 }
 
-export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps) {
+export function ExpenseCard({ expense, members, roundingUnit, onEdit, onDelete }: ExpenseCardProps) {
   const mode = useExpenseTiltStore((s) => s.get(expense.id));
   const setMode = useExpenseTiltStore((s) => s.set);
   const tiltOn = mode === "rough";
   const hasManual = useExpenseAdjustStore((s) => hasAnyAdjustments(s, expense.id));
+
+  const handleEdit = (expenseId: string) => {
+    if (onEdit) {
+      onEdit(expenseId);
+    }
+  };
+
+  const handleDelete = (expenseId: string) => {
+    if (onDelete) {
+      onDelete(expenseId);
+    }
+  };
 
   // 清算計算
   const settlement = useMemo(() => {
@@ -306,8 +320,30 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
           <div className="font-medium">{expense.title}</div>
           <div className="text-lg font-bold text-right">{yen(expense.amountYen)}</div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {expense.paidBy.name} が支払い
+        <div className="flex justify-between items-center mt-2">
+          <div className="text-sm text-muted-foreground">
+            {expense.paidBy.name} が支払い
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleEdit(expense.id)}
+              className="h-7 px-2 text-xs"
+            >
+              編集
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleDelete(expense.id)}
+              className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              削除
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
