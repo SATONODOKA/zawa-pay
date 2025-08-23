@@ -135,7 +135,7 @@ export default function NewGroupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" style={{ paddingTop: 'calc(3rem + 1rem)' }}>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 header-margin">
       <div className="w-full max-w-md space-y-6">
         {/* サイト名 */}
         <div className="text-center">

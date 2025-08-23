@@ -224,7 +224,7 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 header-margin">
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* ヘッダー */}
         <div className="text-center">

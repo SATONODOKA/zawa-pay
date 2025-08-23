@@ -120,7 +120,7 @@ export default function NewPaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4" style={{ paddingTop: 'calc(3rem + 1rem)' }}>
+    <div className="min-h-screen bg-gray-50 p-4 header-margin">
       <div className="max-w-md mx-auto space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold">立替記録を追加</h1>

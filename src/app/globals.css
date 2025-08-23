@@ -120,3 +120,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ヘッダー用の上部マージン */
+.header-margin {
+  padding-top: calc(3rem + 1rem); /* ヘッダー高さ(3rem) + 基本パディング(1rem) */
+}
