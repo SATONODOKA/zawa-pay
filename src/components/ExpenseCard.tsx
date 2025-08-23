@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { yen } from '@/lib/format';
 import { useExpenseTiltStore } from '@/stores/expenseTiltStore';
-import { useExpenseAdjustStore } from '@/stores/expenseAdjustStore';
+import { useExpenseAdjustStore, hasAnyAdjustments } from '@/stores/expenseAdjustStore';
 import { computeSingleExpenseSettlement } from '@/lib/expenseSettlement';
 import { redistributeKeepSumEqual, snap } from '@/lib/redistribute';
 import { useMemo } from 'react';
@@ -78,10 +78,7 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
   const mode = useExpenseTiltStore((s) => s.get(expense.id));
   const setMode = useExpenseTiltStore((s) => s.set);
   const tiltOn = mode === "rough";
-
-  const handleTiltToggle = () => {
-    setMode(expense.id, tiltOn ? "equal" : "rough");
-  };
+  const hasManual = useExpenseAdjustStore((s) => hasAnyAdjustments(s, expense.id));
 
   // 清算計算
   const settlement = useMemo(() => {
@@ -199,21 +196,47 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
             </div>
           )}
           
-          {/* 傾斜トグルボタン */}
+          {/* 2ボタン構成の傾斜制御 */}
           <div className="pt-2 border-t">
-            <Button
-              onClick={handleTiltToggle}
-              variant="outline"
-              size="sm"
-              className="w-full"
-            >
-              {tiltOn ? '傾斜を解除' : '傾斜をかける'}
-            </Button>
-            {tiltOn && (
-              <p className="text-xs text-neutral-500 mt-1 text-center">
-                傾斜（役職×年齢）適用中
-              </p>
-            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  // 手動配分を破棄してから、傾斜モードに
+                  useExpenseAdjustStore.getState().clearExpense(expense.id);
+                  setMode(expense.id, "rough");
+                }}
+                disabled={hasManual}
+                variant="outline"
+                size="sm"
+                className={hasManual ? "opacity-50 cursor-not-allowed" : ""}
+                aria-label="傾斜をかける"
+                title={hasManual ? "手動調整をリセットすると再度かけられます" : ""}
+              >
+                傾斜をかける
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => {
+                  // 手動配分を破棄して均等割に戻す
+                  useExpenseAdjustStore.getState().clearExpense(expense.id);
+                  setMode(expense.id, "equal");
+                }}
+                variant="outline"
+                size="sm"
+                className=""
+                aria-label="均等割に戻す"
+              >
+                均等割に戻す
+              </Button>
+            </div>
+
+            {/* 現在モードの説明 */}
+            <div className="mt-1 text-xs text-neutral-500 text-center">
+              {mode === "rough" ? "傾斜（役職×年齢）適用中" : "均等割（全員同額）"}
+              {hasManual && " ／ 手動調整あり（傾斜をかける を使うにはリセットが必要）"}
+            </div>
           </div>
           
           <div className="text-xs text-muted-foreground">
