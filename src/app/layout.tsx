@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Walica - 会計管理アプリ',
+  title: 'ざわペイ',
   description: '会員登録なし・URL共有のみで共同編集できる会計管理アプリ',
 };
 
