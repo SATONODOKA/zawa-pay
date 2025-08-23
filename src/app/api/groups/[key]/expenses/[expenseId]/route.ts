@@ -4,10 +4,10 @@ import { prisma } from '@/lib/db';
 // 立替の更新
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { key: string; expenseId: string } }
+  { params }: { params: Promise<{ key: string; expenseId: string }> }
 ) {
   try {
-    const { key, expenseId } = params;
+    const { key, expenseId } = await params;
     const body = await request.json();
     const { title, amountYen, paidById, beneficiaryIds } = body;
 
@@ -81,10 +81,10 @@ export async function PUT(
 // 立替の削除
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { key: string; expenseId: string } }
+  { params }: { params: Promise<{ key: string; expenseId: string }> }
 ) {
   try {
-    const { key, expenseId } = params;
+    const { key, expenseId } = await params;
 
     // グループの存在確認
     const group = await prisma.group.findUnique({
@@ -110,7 +110,12 @@ export async function DELETE(
       );
     }
 
-    // 立替を削除（関連データも自動削除される）
+    // 関連データを先に削除
+    await prisma.beneficiary.deleteMany({
+      where: { expenseId },
+    });
+
+    // 立替を削除
     await prisma.expense.delete({
       where: { id: expenseId },
     });
