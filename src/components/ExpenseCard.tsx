@@ -67,11 +67,25 @@ function GroupTransfersWithSliders({
     }
   }, [current]);
 
+  // useExpenseAdjustStoreの状態を監視
+  const savedAdjustments = useExpenseAdjustStore(s => s.getGroup(expenseId, toId));
+  
+  // 手動調整がクリアされた時にinputValuesを更新
+  useEffect(() => {
+    if (!savedAdjustments) {
+      // 手動調整がない場合は、currentの値でinputValuesを更新
+      const newInputValues: Record<string, string> = {};
+      Object.entries(current).forEach(([fromId, amount]) => {
+        newInputValues[fromId] = amount.toString();
+      });
+      setInputValues(newInputValues);
+    }
+  }, [savedAdjustments]);
+
   // 調整後の値を取得する関数
   const getAdjustedAmount = (fromId: string) => {
-    const saved = useExpenseAdjustStore.getState().getGroup(expenseId, toId);
-    if (saved && saved[fromId] !== undefined) {
-      return saved[fromId];
+    if (savedAdjustments && savedAdjustments[fromId] !== undefined) {
+      return savedAdjustments[fromId];
     }
     return current[fromId];
   };
