@@ -61,8 +61,7 @@ export default function GroupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
-  const [memberDeleteDialogOpen, setMemberDeleteDialogOpen] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
+
   
   // Zustandストアから傾斜モードと調整値を取得
   const tiltMap = useExpenseTiltStore((s) => s.map);
@@ -216,37 +215,6 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
     router.push(`/group/${groupKey}/member/${memberId}/edit`);
   };
 
-  const handleMemberDelete = (memberId: string) => {
-    setMemberToDelete(memberId);
-    setMemberDeleteDialogOpen(true);
-  };
-
-  const confirmMemberDelete = async () => {
-    if (!memberToDelete) return;
-    
-    try {
-      const response = await fetch(`/api/groups/${groupKey}/members/${memberToDelete}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.error || '削除に失敗しました');
-        return;
-      }
-
-      // メンバーリストから削除
-      setMembers(prev => prev.filter(m => m.id !== memberToDelete));
-      toast.success('メンバーを削除しました');
-    } catch (error) {
-      console.error('削除に失敗しました:', error);
-      toast.error('削除に失敗しました');
-    } finally {
-      setMemberDeleteDialogOpen(false);
-      setMemberToDelete(null);
-    }
-  };
-
   useEffect(() => {
     if (groupKey) {
       fetchData();
@@ -268,7 +236,7 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
         <div className="text-center">
           <h1 className="text-2xl font-bold">{groupName}</h1>
           <div className="mt-2">
-            <MemberChips members={members} />
+            <MemberChips members={members} onEdit={handleMemberEdit} />
           </div>
         </div>
 
@@ -341,20 +309,7 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
           </div>
         </div>
 
-        {/* メンバー管理 */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">メンバー管理</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {members.map((member) => (
-              <MemberCard
-                key={member.id}
-                member={member}
-                onEdit={handleMemberEdit}
-                onDelete={handleMemberDelete}
-              />
-            ))}
-          </div>
-        </div>
+
 
         {/* 立替履歴 */}
         <div>
@@ -394,17 +349,7 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
         description="この立替を削除しますか？この操作は取り消せません。"
       />
 
-      {/* メンバー削除確認ダイアログ */}
-      <DeleteConfirmDialog
-        isOpen={memberDeleteDialogOpen}
-        onClose={() => {
-          setMemberDeleteDialogOpen(false);
-          setMemberToDelete(null);
-        }}
-        onConfirm={confirmMemberDelete}
-        title="メンバーを削除"
-        description="このメンバーを削除しますか？立替記録で使用されている場合は削除できません。この操作は取り消せません。"
-      />
+
     </div>
   );
 }

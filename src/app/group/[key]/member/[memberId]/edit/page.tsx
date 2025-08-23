@@ -45,7 +45,7 @@ export default function EditMemberPage() {
 
         setMember(targetMember);
         setName(targetMember.name);
-        setRole(targetMember.role || '');
+        setRole(targetMember.role || 'NONE');
         setAge(targetMember.age?.toString() || '');
       } catch (error) {
         console.error('メンバー取得エラー:', error);
@@ -75,7 +75,7 @@ export default function EditMemberPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          role: role || null,
+          role: role === 'NONE' ? null : role,
           age: age ? parseInt(age) : null,
         }),
       });
@@ -118,10 +118,10 @@ export default function EditMemberPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 header-margin">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">メンバーを編集</h1>
-          <p className="text-gray-600 mt-2">メンバーの情報を修正してください</p>
-        </div>
+                       <div className="mb-6">
+                 <h1 className="text-2xl font-bold text-gray-900">メンバー情報を編集</h1>
+                 <p className="text-gray-600 mt-2">年齢と役職のみ変更できます</p>
+               </div>
 
         <Card>
           <CardHeader>
@@ -134,9 +134,10 @@ export default function EditMemberPage() {
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="メンバーの名前を入力"
+                disabled
+                className="bg-gray-50"
               />
+              <p className="text-xs text-gray-500">名前は変更できません</p>
             </div>
 
             {/* 役職 */}
@@ -147,7 +148,7 @@ export default function EditMemberPage() {
                   <SelectValue placeholder="役職を選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">役職なし</SelectItem>
+                  <SelectItem value="NONE">役職なし</SelectItem>
                   <SelectItem value="EXEC">社長</SelectItem>
                   <SelectItem value="MANAGER">部長</SelectItem>
                   <SelectItem value="SENIOR">シニア</SelectItem>
