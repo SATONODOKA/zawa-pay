@@ -52,12 +52,37 @@ function GroupTransfersWithSliders({
 
   // 初期値の設定とcurrent変更時の同期
   useEffect(() => {
-    const newInputValues: Record<string, string> = {};
-    Object.entries(current).forEach(([fromId, amount]) => {
-      newInputValues[fromId] = amount.toString();
-    });
-    setInputValues(newInputValues);
+    // currentのキーが変わった時のみ更新
+    const currentKeys = Object.keys(current);
+    const inputKeys = Object.keys(inputValues);
+    
+    // キーの数や内容が変わった時のみ更新
+    if (currentKeys.length !== inputKeys.length || 
+        !currentKeys.every(key => inputKeys.includes(key))) {
+      const newInputValues: Record<string, string> = {};
+      Object.entries(current).forEach(([fromId, amount]) => {
+        newInputValues[fromId] = amount.toString();
+      });
+      setInputValues(newInputValues);
+    }
   }, [current]);
+
+  // 調整後の値を取得する関数
+  const getAdjustedAmount = (fromId: string) => {
+    const saved = useExpenseAdjustStore.getState().getGroup(expenseId, toId);
+    if (saved && saved[fromId] !== undefined) {
+      return saved[fromId];
+    }
+    return current[fromId];
+  };
+
+  // 調整後の値を含むcurrentを作成
+  const adjustedCurrent = Object.fromEntries(
+    Object.keys(current).map(fromId => [
+      fromId, 
+      getAdjustedAmount(fromId)
+    ])
+  );
 
   const handleAmountChange = (fromId: string, newAmount: number) => {
     // 入力値を丸め単位にスナップ
@@ -65,8 +90,8 @@ function GroupTransfersWithSliders({
     // 0以上、グループ合計以下に制限
     const clampedAmount = Math.max(0, Math.min(snappedAmount, groupTotal));
     
-    // 再配分を実行
-    const next = redistributeKeepSumEqual(current, groupTotal, fromId, clampedAmount);
+    // 再配分を実行（調整後の値を使用）
+    const next = redistributeKeepSumEqual(adjustedCurrent, groupTotal, fromId, clampedAmount);
     
     // 全員分の金額を更新
     for (const [fid, v] of Object.entries(next)) {
@@ -74,16 +99,29 @@ function GroupTransfersWithSliders({
     }
 
     // 入力値も全員分更新（再配分後の値で）
+    // 現在の値と異なる場合のみ更新
     setInputValues(prev => {
+      let hasChanges = false;
       const updated = { ...prev };
+      
       for (const [fid, v] of Object.entries(next)) {
-        updated[fid] = v.toString();
+        const newValue = v.toString();
+        if (updated[fid] !== newValue) {
+          updated[fid] = newValue;
+          hasChanges = true;
+        }
       }
-      return updated;
+      
+      return hasChanges ? updated : prev;
     });
   };
 
   const handleInputChange = (fromId: string, inputValue: string) => {
+    // 現在の値と同じ場合は更新しない
+    if (inputValues[fromId] === inputValue) {
+      return;
+    }
+    
     // 入力値をローカル状態に保存
     setInputValues(prev => ({ ...prev, [fromId]: inputValue }));
     
@@ -100,7 +138,10 @@ function GroupTransfersWithSliders({
     
     if (isNaN(numValue) || inputValue === '') {
       // 無効な値の場合は現在の金額に戻す
-      setInputValues(prev => ({ ...prev, [fromId]: current[fromId].toString() }));
+      const currentValue = current[fromId].toString();
+      if (inputValues[fromId] !== currentValue) {
+        setInputValues(prev => ({ ...prev, [fromId]: currentValue }));
+      }
     } else {
       // 有効な値の場合は丸め単位にスナップ
       const snapped = snap(numValue, roundingUnit);
@@ -122,7 +163,7 @@ function GroupTransfersWithSliders({
             min={0}
             max={groupTotal}
             step={roundingUnit}
-            value={amt}
+            value={getAdjustedAmount(fromId)}
             onChange={(e) => {
               const val = Number(e.target.value);
               handleAmountChange(fromId, val);
