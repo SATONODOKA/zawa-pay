@@ -8,7 +8,7 @@ import { useExpenseTiltStore } from '@/stores/expenseTiltStore';
 import { useExpenseAdjustStore, hasAnyAdjustments } from '@/stores/expenseAdjustStore';
 import { computeSingleExpenseSettlement } from '@/lib/expenseSettlement';
 import { redistributeKeepSumEqual, snap } from '@/lib/redistribute';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 interface ExpenseCardProps {
   expense: {
@@ -44,16 +44,79 @@ function GroupTransfersWithSliders({
 }) {
   const saved = useExpenseAdjustStore(s => s.getGroup(expenseId, toId));
   const setAmount = useExpenseAdjustStore(s => s.setAmount);
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
 
   const groupTotal = rows.reduce((s, r) => s + r.amountYen, 0);
   const current: Record<string, number> =
     saved ?? Object.fromEntries(rows.map(r => [r.fromId, r.amountYen]));
 
+  // 初期値の設定とcurrent変更時の同期
+  useEffect(() => {
+    const newInputValues: Record<string, string> = {};
+    Object.entries(current).forEach(([fromId, amount]) => {
+      newInputValues[fromId] = amount.toString();
+    });
+    setInputValues(newInputValues);
+  }, [current]);
+
+  const handleAmountChange = (fromId: string, newAmount: number) => {
+    // 入力値を丸め単位にスナップ
+    const snappedAmount = snap(newAmount, roundingUnit);
+    // 0以上、グループ合計以下に制限
+    const clampedAmount = Math.max(0, Math.min(snappedAmount, groupTotal));
+    
+    // 再配分を実行
+    const next = redistributeKeepSumEqual(current, groupTotal, fromId, clampedAmount);
+    
+    // 全員分の金額を更新
+    for (const [fid, v] of Object.entries(next)) {
+      setAmount(expenseId, toId, fid, v);
+    }
+
+    // 入力値も全員分更新（再配分後の値で）
+    setInputValues(prev => {
+      const updated = { ...prev };
+      for (const [fid, v] of Object.entries(next)) {
+        updated[fid] = v.toString();
+      }
+      return updated;
+    });
+  };
+
+  const handleInputChange = (fromId: string, inputValue: string) => {
+    // 入力値をローカル状態に保存
+    setInputValues(prev => ({ ...prev, [fromId]: inputValue }));
+    
+    // 数値として有効な場合のみ処理
+    const numValue = Number(inputValue);
+    if (!isNaN(numValue) && inputValue !== '') {
+      handleAmountChange(fromId, numValue);
+    }
+  };
+
+  const handleInputBlur = (fromId: string) => {
+    const inputValue = inputValues[fromId];
+    const numValue = Number(inputValue);
+    
+    if (isNaN(numValue) || inputValue === '') {
+      // 無効な値の場合は現在の金額に戻す
+      setInputValues(prev => ({ ...prev, [fromId]: current[fromId].toString() }));
+    } else {
+      // 有効な値の場合は丸め単位にスナップ
+      const snapped = snap(numValue, roundingUnit);
+      if (snapped !== numValue) {
+        handleAmountChange(fromId, snapped);
+      }
+    }
+  };
+
   return (
     <div className="space-y-1">
       {Object.entries(current).map(([fromId, amt]) => (
         <div key={fromId} className="flex items-center gap-3 rounded bg-neutral-50 px-3 py-2">
-          <span className="w-24 truncate">{membersById[fromId]?.name} →</span>
+          <span className="w-24 truncate text-sm">{membersById[fromId]?.name} →</span>
+          
+          {/* スライダー */}
           <input
             type="range"
             min={0}
@@ -61,13 +124,30 @@ function GroupTransfersWithSliders({
             step={roundingUnit}
             value={amt}
             onChange={(e) => {
-              const val = snap(Number(e.target.value), roundingUnit);
-              const next = redistributeKeepSumEqual(current, groupTotal, fromId, val);
-              for (const [fid, v] of Object.entries(next)) setAmount(expenseId, toId, fid, v);
+              const val = Number(e.target.value);
+              handleAmountChange(fromId, val);
             }}
             className="flex-1"
           />
-          <span className="w-24 text-right font-semibold">¥{amt.toLocaleString()}</span>
+          
+          {/* 直接入力フィールド */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">¥</span>
+            <input
+              type="text"
+              value={inputValues[fromId] || ''}
+              onChange={(e) => handleInputChange(fromId, e.target.value)}
+              onBlur={() => handleInputBlur(fromId)}
+              onKeyDown={(e) => {
+                // Enterキーでフォーカスアウト
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+              className="w-20 text-right text-sm font-mono border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-colors"
+              placeholder="0"
+            />
+          </div>
         </div>
       ))}
     </div>
@@ -176,7 +256,12 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
           {/* 送金すべき金額（スライダー付き） */}
           {transfers.length > 0 && (
             <div className="pt-2 border-t">
-              <div className="text-sm font-medium mb-2">送金すべき金額:</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium">送金すべき金額:</div>
+                <div className="text-xs text-gray-500">
+                  丸め単位: ¥{roundingUnit.toLocaleString()}
+                </div>
+              </div>
               <div className="space-y-3">
                 {Object.entries(sliderData).map(([toId, rows]) => (
                   <div key={toId} className="space-y-2">
