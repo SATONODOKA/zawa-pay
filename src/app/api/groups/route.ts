@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateGroupKey } from '@/lib/key';
 import { roundToUnit } from '@/lib/format';
-import { CreateGroupSchema, CreateMemberSchema } from '@/lib/validation';
+import { CreateGroupSchema } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // メンバー作成（role/age対応）
     await prisma.member.createMany({
-      data: members.map((member: any) => {
+      data: members.map((member: string | { name: string; role?: 'EXEC' | 'MANAGER' | 'SENIOR' | 'MEMBER' | 'JUNIOR'; age?: number | null }) => {
         if (typeof member === 'string') {
           // 後方互換：文字列の場合はnameのみ
           return {

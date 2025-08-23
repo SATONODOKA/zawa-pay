@@ -70,7 +70,10 @@ function GroupTransfersWithSliders({
   // useExpenseAdjustStoreの状態を監視
   const savedAdjustments = useExpenseAdjustStore(s => s.getGroup(expenseId, toId));
   
-  // 手動調整がクリアされた時にinputValuesを更新
+  // 傾斜モードの変更も監視
+  const tiltMode = useExpenseTiltStore(s => s.get(expenseId));
+  
+  // 手動調整がクリアされた時、または傾斜モードが変更された時にinputValuesを更新
   useEffect(() => {
     if (!savedAdjustments) {
       // 手動調整がない場合は、currentの値でinputValuesを更新
@@ -81,6 +84,18 @@ function GroupTransfersWithSliders({
       setInputValues(newInputValues);
     }
   }, [savedAdjustments]);
+
+  // 傾斜モードが変更された時にinputValuesを更新
+  useEffect(() => {
+    // 手動調整がない場合のみ更新
+    if (!savedAdjustments) {
+      const newInputValues: Record<string, string> = {};
+      Object.entries(current).forEach(([fromId, amount]) => {
+        newInputValues[fromId] = amount.toString();
+      });
+      setInputValues(newInputValues);
+    }
+  }, [tiltMode, savedAdjustments]);
 
   // 調整後の値を取得する関数
   const getAdjustedAmount = (fromId: string) => {
@@ -167,9 +182,9 @@ function GroupTransfersWithSliders({
 
   return (
     <div className="space-y-1">
-      {Object.entries(current).map(([fromId, amt]) => (
-        <div key={fromId} className="flex items-center gap-3 rounded bg-neutral-50 px-3 py-2">
-          <span className="w-24 truncate text-sm">{membersById[fromId]?.name} →</span>
+                       {Object.entries(current).map(([fromId]) => (
+                   <div key={fromId} className="flex items-center gap-3 rounded bg-neutral-50 px-3 py-2">
+                     <span className="w-24 truncate text-sm">{membersById[fromId]?.name} →</span>
           
           {/* スライダー */}
           <input

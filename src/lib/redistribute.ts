@@ -21,7 +21,7 @@ export function redistributeKeepSumEqual(
 
   const needOthers = groupTotal - next[targetId];
   const base = Math.floor(needOthers / others.length);
-  let r = needOthers - base * others.length;
+  const r = needOthers - base * others.length;
   for (let i = 0; i < others.length; i++) next[others[i]] = base + (i < r ? 1 : 0);
 
   // 最終調整（端数）

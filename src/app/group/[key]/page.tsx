@@ -86,7 +86,7 @@ export default function GroupPage() {
     });
     
     // 調整ストアの値があれば、それを優先してnetsを更新
-    let adjustedNets = { ...nets };
+    const adjustedNets = { ...nets };
     
     Object.entries(adjustments).forEach(([expenseId, expenseAdjustments]) => {
       Object.entries(expenseAdjustments).forEach(([toId, fromAdjustments]) => {

@@ -17,7 +17,7 @@ export function ageBucketFactor(age?: number | null) {
 }
 
 export function roughWeight(role?: string, age?: number | null) {
-  const base = (ROLE_FACTOR as any)[role ?? "MEMBER"] ?? 1.0;
+  const base = (ROLE_FACTOR as Record<string, number>)[role ?? "MEMBER"] ?? 1.0;
   return Number((base * ageBucketFactor(age)).toFixed(3));
 }
 
@@ -30,7 +30,7 @@ export function allocateByWeights(
   const W = weights.reduce((s, x) => s + x.weight, 0);
   if (W <= 0) {
     const k = weights.length, base = Math.floor(total / k);
-    let r = total - base * k;
+    const r = total - base * k;
     return Object.fromEntries(weights.map((it, i) => [it.id, base + (i < r ? 1 : 0)]));
   }
   const raw = weights.map(x => ({ id: x.id, raw: (total * x.weight) / W }));
