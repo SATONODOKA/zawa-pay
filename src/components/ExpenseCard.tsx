@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { yen } from '@/lib/format';
 import { useExpenseTiltStore } from '@/stores/expenseTiltStore';
+import { useExpenseAdjustStore } from '@/stores/expenseAdjustStore';
 import { computeSingleExpenseSettlement } from '@/lib/expenseSettlement';
+import { redistributeKeepSumEqual, snap } from '@/lib/redistribute';
 import { useMemo } from 'react';
 
 interface ExpenseCardProps {
@@ -24,6 +26,52 @@ interface ExpenseCardProps {
     age?: number | null;
   }>;
   roundingUnit: 1 | 10 | 100 | 1000;
+}
+
+// スライダー付き送金表示コンポーネント
+function GroupTransfersWithSliders({
+  expenseId,
+  toId,
+  rows,
+  roundingUnit = 1,
+  membersById
+}: {
+  expenseId: string;
+  toId: string;
+  rows: Array<{ fromId: string; amountYen: number }>;
+  roundingUnit: number;
+  membersById: Record<string, { name: string }>;
+}) {
+  const saved = useExpenseAdjustStore(s => s.getGroup(expenseId, toId));
+  const setAmount = useExpenseAdjustStore(s => s.setAmount);
+
+  const groupTotal = rows.reduce((s, r) => s + r.amountYen, 0);
+  const current: Record<string, number> =
+    saved ?? Object.fromEntries(rows.map(r => [r.fromId, r.amountYen]));
+
+  return (
+    <div className="space-y-1">
+      {Object.entries(current).map(([fromId, amt]) => (
+        <div key={fromId} className="flex items-center gap-3 rounded bg-neutral-50 px-3 py-2">
+          <span className="w-24 truncate">{membersById[fromId]?.name} →</span>
+          <input
+            type="range"
+            min={0}
+            max={groupTotal}
+            step={roundingUnit}
+            value={amt}
+            onChange={(e) => {
+              const val = snap(Number(e.target.value), roundingUnit);
+              const next = redistributeKeepSumEqual(current, groupTotal, fromId, val);
+              for (const [fid, v] of Object.entries(next)) setAmount(expenseId, toId, fid, v);
+            }}
+            className="flex-1"
+          />
+          <span className="w-24 text-right font-semibold">¥{amt.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps) {
@@ -55,7 +103,7 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
 
   // 送金すべき金額を計算
   const transfers = useMemo(() => {
-    const transfers: Array<{ from: string; to: string; amount: number }> = [];
+    const transfers: Array<{ from: string; to: string; amount: number; fromId: string; toId: string }> = [];
     
     // 支払者（プラス）から受益者（マイナス）への送金を計算
     const paidByNet = settlement[expense.paidBy.id] || 0;
@@ -70,6 +118,8 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
             transfers.push({
               from: beneficiary.name,
               to: expense.paidBy.name,
+              fromId: beneficiary.id,
+              toId: expense.paidBy.id,
               amount,
             });
           }
@@ -79,6 +129,28 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
     
     return transfers;
   }, [settlement, expense]);
+
+  // スライダー用のデータ構造
+  const sliderData = useMemo(() => {
+    const data: Record<string, Array<{ fromId: string; amountYen: number }>> = {};
+    
+    transfers.forEach(transfer => {
+      if (!data[transfer.toId]) {
+        data[transfer.toId] = [];
+      }
+      data[transfer.toId].push({
+        fromId: transfer.fromId,
+        amountYen: transfer.amount
+      });
+    });
+    
+    return data;
+  }, [transfers]);
+
+  const membersById = useMemo(() => 
+    Object.fromEntries(members.map(m => [m.id, m])), 
+    [members]
+  );
 
   return (
     <Card>
@@ -104,17 +176,23 @@ export function ExpenseCard({ expense, members, roundingUnit }: ExpenseCardProps
             </div>
           </div>
           
-          {/* 送金すべき金額 */}
+          {/* 送金すべき金額（スライダー付き） */}
           {transfers.length > 0 && (
             <div className="pt-2 border-t">
               <div className="text-sm font-medium mb-2">送金すべき金額:</div>
-              <div className="space-y-1">
-                {transfers.map((transfer, index) => (
-                  <div key={index} className="text-xs bg-gray-50 p-2 rounded">
-                    <span className="text-red-600">{transfer.from}</span>
-                    <span className="mx-2">→</span>
-                    <span className="text-green-600">{transfer.to}</span>
-                    <span className="ml-2 font-mono">¥{transfer.amount}</span>
+              <div className="space-y-3">
+                {Object.entries(sliderData).map(([toId, rows]) => (
+                  <div key={toId} className="space-y-2">
+                    <div className="text-xs text-green-600 font-medium">
+                      → {membersById[toId]?.name}
+                    </div>
+                    <GroupTransfersWithSliders
+                      expenseId={expense.id}
+                      toId={toId}
+                      rows={rows}
+                      roundingUnit={roundingUnit}
+                      membersById={membersById}
+                    />
                   </div>
                 ))}
               </div>

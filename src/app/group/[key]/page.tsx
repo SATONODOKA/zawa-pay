@@ -15,6 +15,7 @@ import { saveGroupHistory } from '@/lib/storage';
 import { computeGroupTransfers } from '@/lib/expenseSettlement';
 import { greedySettle } from '@/lib/settlement';
 import { useExpenseTiltStore } from '@/stores/expenseTiltStore';
+import { useExpenseAdjustStore } from '@/stores/expenseAdjustStore';
 
 interface Member {
   id: string;
@@ -46,7 +47,6 @@ interface Summary {
   settlements: Settlement[];
   settlementText: string;
   roundingUnit: number;
-  tilt: string;
 }
 
 export default function GroupPage() {
@@ -58,11 +58,12 @@ export default function GroupPage() {
   const [unit, setUnit] = useState<1 | 10 | 100 | 1000>(1);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Zustandストアから傾斜モードを取得
+  // Zustandストアから傾斜モードと調整値を取得
   const tiltMap = useExpenseTiltStore((s) => s.map);
   const getTiltMode = useExpenseTiltStore((s) => s.get);
+  const adjustments = useExpenseAdjustStore((s) => s.adjustments);
   
-  // クライアントサイドで清算計算
+  // クライアントサイドで清算計算（調整ストアの値を優先）
   const summary = useMemo(() => {
     if (members.length === 0 || expenses.length === 0) return null;
     
@@ -84,11 +85,28 @@ export default function GroupPage() {
       getTiltMode,
     });
     
+    // 調整ストアの値があれば、それを優先してnetsを更新
+    let adjustedNets = { ...nets };
+    
+    Object.entries(adjustments).forEach(([expenseId, expenseAdjustments]) => {
+      Object.entries(expenseAdjustments).forEach(([toId, fromAdjustments]) => {
+        // 調整された金額を適用
+        Object.entries(fromAdjustments).forEach(([fromId, adjustedAmount]) => {
+          // 元の計算結果を調整
+          const originalAmount = nets[fromId] || 0;
+          const adjustment = adjustedAmount - (nets[toId] || 0);
+          
+          adjustedNets[fromId] = originalAmount - adjustment;
+          adjustedNets[toId] = (adjustedNets[toId] || 0) + adjustment;
+        });
+      });
+    });
+    
     // メンバーID→メンバー名のマップを作成
     const memberNames = Object.fromEntries(members.map(m => [m.id, m.name]));
     
     // netsを配列形式に変換
-    const netsArray = Object.entries(nets).map(([memberId, net]) => ({
+    const netsArray = Object.entries(adjustedNets).map(([memberId, net]) => ({
       memberId,
       name: memberNames[memberId],
       net,
@@ -111,7 +129,7 @@ ${settlements.map(s => `${s.from} → ${s.to}：${yen(s.amount)}`).join('\n')}
       settlementText,
       roundingUnit: unit,
     };
-  }, [members, expenses, unit, tiltMap]);
+  }, [members, expenses, unit, tiltMap, adjustments]);
 
   const groupKey = params.key as string;
 
