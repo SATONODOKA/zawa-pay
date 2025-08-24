@@ -1,8 +1,44 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/db';
-import { generateGroupKey } from '@/lib/key';
-import { roundToUnit } from '@/lib/format';
-import { CreateGroupSchema } from '@/lib/validation';
+import { PrismaClient } from '@prisma/client';
+export const prisma = new PrismaClient();
+
+
+
+
+
+import { z } from "zod";
+
+export const RoleEnum = z.enum(["EXEC", "MANAGER", "SENIOR", "MEMBER", "JUNIOR"]);
+
+export const CreateMemberSchema = z.object({
+  name: z.string().min(1),
+  role: RoleEnum.optional(),
+  age: z.number().int().min(0).max(120).optional(),
+});
+
+export const UpdateMemberSchema = z.object({
+  name: z.string().min(1).optional(),
+  isActive: z.boolean().optional(),
+  role: RoleEnum.optional(),
+  age: z.number().int().min(0).max(120).optional(),
+});
+
+export const CreateGroupSchema = z.object({
+  name: z.string().min(1),
+  members: z.array(z.union([z.string(), CreateMemberSchema])).min(1),
+  roundingUnit: z.number().int().positive().optional().default(1),
+});
+
+export const generateGroupKey = () =>
+  [...crypto.getRandomValues(new Uint8Array(9))]
+    .map(b => (b % 36).toString(36).toUpperCase())
+    .join('');
+
+export const yen = (n: number) => `¥${n.toLocaleString()}`;
+export const roundToUnit = (n: number, unit: 1|10|100|1000) =>
+  Math.round(n / unit) * unit;
+
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
