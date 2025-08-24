@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface Member {
@@ -54,13 +53,13 @@ export default function EditExpensePage() {
         const expensesResponse = await fetch(`/api/groups/${groupKey}/expenses`);
         if (expensesResponse.ok) {
           const expensesData = await expensesResponse.json();
-          const targetExpense = expensesData.find((e: any) => e.id === expenseId);
+          const targetExpense = expensesData.find((e: Expense) => e.id === expenseId);
           if (targetExpense) {
             setExpense(targetExpense);
             setTitle(targetExpense.title);
             setAmount(targetExpense.amountYen.toString());
             setPaidById(targetExpense.paidBy.id);
-            setSelectedBeneficiaries(targetExpense.beneficiaries.map((b: any) => b.id));
+            setSelectedBeneficiaries(targetExpense.beneficiaries.map((b: { id: string; name: string }) => b.id));
           }
         }
       } catch (error) {

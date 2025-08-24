@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { CreateMemberSchema } from '@/lib/validation';
+import { Role } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -65,7 +66,7 @@ export async function POST(
             error: `メンバーは既に存在します: ${member}` 
           }, { status: 400 });
         }
-        validatedMembers.push({ name: member, role: 'MEMBER', age: null });
+        validatedMembers.push({ name: member, role: Role.MEMBER, age: null });
       } else {
         // オブジェクト形式の場合
         const validation = CreateMemberSchema.safeParse(member);
@@ -85,7 +86,7 @@ export async function POST(
         
         validatedMembers.push({
           name: member.name,
-          role: member.role ?? 'MEMBER',
+          role: (member.role as Role) ?? Role.MEMBER,
           age: member.age ?? null
         });
       }
@@ -96,7 +97,7 @@ export async function POST(
       data: validatedMembers.map(member => ({
         groupId: group.id,
         name: member.name.trim(),
-        role: member.role,
+        role: member.role as Role,
         age: member.age
       }))
     });

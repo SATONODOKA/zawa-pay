@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MemberChips } from '@/components/MemberChips';
-import { MemberCard } from '@/components/MemberCard';
 import { ExpenseCard } from '@/components/ExpenseCard';
 import { CopyButton } from '@/components/CopyButton';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
