@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/db';
 import { generateGroupKey } from '@/lib/key';
 import { roundToUnit } from '@/lib/format';
 import { CreateGroupSchema } from '@/lib/validation';
 
-export async function POST(request: NextRequest) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const body = await request.json();
+    const body = req.body;
     const validatedData = CreateGroupSchema.safeParse(body);
     
     if (!validatedData.success) {
-      return NextResponse.json({ 
+      return res.status(400).json({ 
         error: 'バリデーションエラー', 
         details: validatedData.error.issues 
-      }, { status: 400 });
+      });
     }
 
     const { name, members, roundingUnit } = validatedData.data;
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       key = generateGroupKey();
       attempts++;
       if (attempts > 10) {
-        return NextResponse.json({ error: 'グループキーの生成に失敗しました' }, { status: 500 });
+        return res.status(500).json({ error: 'グループキーの生成に失敗しました' });
       }
     } while (await prisma.group.findUnique({ where: { key } }));
 
@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
       })
     });
 
-    return NextResponse.json({ key }, { status: 201 });
+    return res.status(201).json({ key });
   } catch (error) {
     console.error('グループ作成エラー:', error);
-    return NextResponse.json({ error: 'グループ作成に失敗しました' }, { status: 500 });
+    return res.status(500).json({ error: 'グループ作成に失敗しました' });
   }
 }
